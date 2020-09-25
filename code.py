@@ -1,0 +1,56 @@
+from typing import Union
+import pandas as pd
+import difflib
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+movie = pd.read_csv('moviedata.csv')
+
+features = ['keywords', 'cast', 'genres', 'director', 'vote_average']
+
+for feature in features:
+    movie[feature] = movie[feature].fillna('')
+
+
+def combine_feartures(row):
+    try:
+        result = row['keywords'] + ' ' + row['cast'] + ' ' + row['genres'] + ' ' + row['director'] + ' ' + str(
+            row['vote_average'])
+        return result
+    except:
+        print("Error")
+
+
+movie["combined_features"] = movie.apply(combine_feartures, axis=1)
+
+
+def title_from_index(index):
+    return movie[movie.index == index]["title"].values[0]
+
+
+def index_from_title(title):
+    title_list = movie["title"].tolist()
+    common = difflib.get_close_matches(title, title_list, 1)
+    title_sim: Union[str, bytes] = common[0].title()
+    print(title_sim)
+    return movie[movie.title == title_sim]["index"].values[0]
+
+
+cv = CountVectorizer()
+count_matrix = cv.fit_transform(movie["combined_features"])
+cosine_sim = cosine_similarity(count_matrix)
+
+user_movie = input("Enter Movie Name:\t")
+movie_index = index_from_title(user_movie)
+
+similar_movies = list(enumerate(cosine_sim[movie_index]))
+similar_movies_sorted = sorted(similar_movies, key=lambda x: x[1], reverse=True)
+
+i = 0
+print("Other movies suggestion:")
+for rec_movie in similar_movies_sorted:
+    if i != 0:
+        print(i, title_from_index(rec_movie[0]), sep=". ")
+    i += 1
+    if i > 50:
+        break
